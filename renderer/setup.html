@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PokeeClaude Setup</title>
+    <link rel="stylesheet" href="/setup.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <img class="logo" src="/icon.png" alt="" width="40" height="40" />
+        <div>
+          <h1>PokeeClaude</h1>
+          <p>Pick a Pokémon to keep Claude Code company on your desktop.</p>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="picker" aria-label="Choose a Pokémon">
+        <div class="filters">
+          <input id="search" type="search" placeholder="Search by name or number…" autocomplete="off" aria-label="Search Pokémon" />
+          <div id="gens" class="chips" role="group" aria-label="Generation"></div>
+          <label class="toggle">
+            <input id="shiny" type="checkbox" />
+            <span>Shiny ✨</span>
+          </label>
+        </div>
+        <p id="count" class="count"></p>
+        <div id="grid" class="grid" role="listbox" aria-label="Pokémon"></div>
+      </section>
+
+      <aside class="panel">
+        <div class="card selected-card">
+          <div class="stage">
+            <img id="preview" alt="" hidden />
+            <span id="preview-empty" class="muted">Choose a Pokémon</span>
+          </div>
+          <h2 id="sel-name">No Pokémon selected</h2>
+          <p id="sel-meta" class="muted"></p>
+        </div>
+
+        <div class="card">
+          <h3>Connect</h3>
+          <label class="agent">
+            <input id="agent-claude" type="checkbox" checked />
+            <span>
+              <strong>Claude Code</strong>
+              <small id="claude-status" class="muted"></small>
+            </span>
+          </label>
+          <label class="agent">
+            <input id="agent-codex" type="checkbox" />
+            <span>
+              <strong>Codex CLI</strong> <small class="muted">(optional)</small>
+              <small id="codex-status" class="muted"></small>
+            </span>
+          </label>
+        </div>
+
+        <button id="go" class="primary" disabled>Choose a Pokémon</button>
+        <p id="message" class="message" role="status" aria-live="polite"></p>
+
+        <div id="mine-card" class="card" hidden>
+          <h3>Your pets</h3>
+          <ul id="mine" class="mine"></ul>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="foot">
+      Sprites download from <a href="https://github.com/jakobhoeg/vscode-pokemon" target="_blank" rel="noreferrer">vscode-pokemon</a>.
+      Pokémon © Nintendo / Creatures / GAME FREAK. Unofficial fan project.
+    </footer>
+    <script type="module" src="/setup.js"></script>
+  </body>
+</html>

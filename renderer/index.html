@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PokeeClaude</title>
+    <link rel="stylesheet" href="/pet.css" />
+  </head>
+  <body>
+    <div id="pet" class="pet" aria-live="polite">
+      <div id="bubble" class="bubble" hidden>
+        <div class="bubble-row">
+          <span id="bubble-icon" class="bubble-icon"></span>
+          <span id="bubble-text" class="bubble-text"></span>
+        </div>
+        <div class="bubble-meta">
+          <span id="bubble-project" class="chip"></span>
+          <span id="bubble-agent" class="chip chip-agent"></span>
+          <span id="bubble-others" class="chip chip-others" hidden></span>
+        </div>
+      </div>
+      <div id="alert" class="alert" hidden>!</div>
+      <canvas id="sprite" class="sprite" width="192" height="208" aria-label="Desktop pet"></canvas>
+      <div id="shadow" class="shadow"></div>
+    </div>
+    <div id="empty" class="empty" hidden>
+      No pet yet. Run <code>pokeeclaude add pikachu</code>
+    </div>
+    <script type="module" src="/pet.js"></script>
+  </body>
+</html>

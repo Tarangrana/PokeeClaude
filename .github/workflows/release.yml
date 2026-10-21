@@ -1,0 +1,83 @@
+name: Build installers
+
+# Builds the .dmg (macOS), .exe (Windows) and .AppImage (Linux).
+# - Run it any time from the Actions tab ("Run workflow"): installers are
+#   attached to the run as downloadable artifacts.
+# - Push a version tag (e.g. v0.1.0) to also publish them on a GitHub Release.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macos-arm64
+            os: macos-latest
+            args: --mac --arm64
+            files: release/*.dmg
+          - name: macos-x64
+            os: macos-15-intel
+            args: --mac --x64
+            files: release/*.dmg
+          - name: windows-x64
+            os: windows-latest
+            args: --win --x64
+            files: release/*.exe
+          - name: linux-x64
+            os: ubuntu-latest
+            args: --linux --x64
+            files: release/*.AppImage
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      # Installs Electron and the sharp image library for this OS/CPU.
+      - run: npm ci
+      - run: npm run build
+      - run: npx electron-builder ${{ matrix.args }} --publish never
+        env:
+          # No paid signing certificates: macOS gets an ad-hoc signature.
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PokeeClaude-${{ matrix.name }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: installers/*
+          generate_release_notes: true

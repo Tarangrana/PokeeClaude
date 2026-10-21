@@ -1,0 +1,199 @@
+:root {
+  --bubble-bg: #ffffff;
+  --bubble-fg: #1d1d28;
+  --bubble-border: #1d1d28;
+  --chip-bg: #eef0f7;
+  --chip-fg: #4a4e63;
+  --attention: #e8453c;
+  --done: #2f9e5b;
+  --page-bg: linear-gradient(160deg, #cfe3ff 0%, #f6e7ff 55%, #ffe9d6 100%);
+  font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bubble-bg: #23242f;
+    --bubble-fg: #f3f3f8;
+    --bubble-border: #000000;
+    --chip-bg: #343647;
+    --chip-fg: #c9cbe0;
+    --page-bg: linear-gradient(160deg, #1b2236 0%, #2a1f36 55%, #33261f 100%);
+  }
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Browser mode gets a pretend desktop; Electron stays fully transparent. */
+body {
+  background: var(--page-bg);
+}
+body.electron {
+  background: transparent;
+}
+
+.pet {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: max-content;
+  cursor: grab;
+  touch-action: none;
+}
+.pet.dragging {
+  cursor: grabbing;
+}
+
+.sprite {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  pointer-events: auto;
+}
+.sprite.flip {
+  transform: scaleX(-1);
+}
+
+.shadow {
+  width: 46%;
+  height: 8px;
+  margin-top: -14px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.18);
+  filter: blur(2px);
+  pointer-events: none;
+}
+
+.bubble {
+  position: relative;
+  max-width: 230px;
+  min-width: 90px;
+  /* Sprite cells have headroom for jumps; tuck the bubble into it. */
+  margin-bottom: -18px;
+  z-index: 1;
+  padding: 7px 10px 6px;
+  border: 2px solid var(--bubble-border);
+  border-radius: 12px;
+  background: var(--bubble-bg);
+  color: var(--bubble-fg);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.18);
+  font-size: 12.5px;
+  line-height: 1.3;
+  animation: pop 160ms ease-out;
+}
+.bubble::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -8px;
+  width: 12px;
+  height: 12px;
+  transform: translateX(-50%) rotate(45deg);
+  background: var(--bubble-bg);
+  border-right: 2px solid var(--bubble-border);
+  border-bottom: 2px solid var(--bubble-border);
+}
+.bubble.attention {
+  border-color: var(--attention);
+}
+.bubble.attention::after {
+  border-color: var(--attention);
+}
+.bubble.done {
+  border-color: var(--done);
+}
+.bubble.done::after {
+  border-color: var(--done);
+}
+
+.bubble-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+}
+.bubble-icon {
+  flex: none;
+}
+.bubble-text {
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+.bubble-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+.bubble-meta:empty {
+  display: none;
+}
+.chip {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--chip-bg);
+  color: var(--chip-fg);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.chip:empty {
+  display: none;
+}
+
+.alert {
+  position: absolute;
+  top: 34%;
+  right: 14%;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--attention);
+  color: #fff;
+  font-weight: 800;
+  text-align: center;
+  line-height: 22px;
+  animation: bounce 900ms ease-in-out infinite;
+  pointer-events: none;
+}
+
+.empty {
+  position: absolute;
+  inset: auto 8px 12px 8px;
+  padding: 10px;
+  border-radius: 10px;
+  background: var(--bubble-bg);
+  color: var(--bubble-fg);
+  font-size: 12px;
+  text-align: center;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.85);
+    opacity: 0;
+  }
+}
+@keyframes bounce {
+  50% {
+    transform: translateY(-5px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bubble,
+  .alert {
+    animation: none;
+  }
+}

@@ -1,0 +1,110 @@
+{
+  "name": "pokeeclaude",
+  "version": "0.1.0",
+  "description": "Pokémon desktop pets for Claude Code (and Codex) — a re-engineered Codex-pet runtime driven by agent hooks.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "pokeeclaude": "dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "desktop",
+    "renderer",
+    "scripts",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "dev": "tsx src/cli.ts",
+    "prepack": "npm run build",
+    "app": "npm run build && node dist/cli.js setup",
+    "dist": "npm run build && electron-builder --publish never",
+    "dist:mac": "npm run build && electron-builder --mac --publish never",
+    "dist:win": "npm run build && electron-builder --win --publish never",
+    "dist:linux": "npm run build && electron-builder --linux --publish never"
+  },
+  "dependencies": {
+    "sharp": "^0.34.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "electron": "^38.8.6",
+    "electron-builder": "^26.15.3",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0"
+  },
+  "author": {
+    "name": "Tarang Rana",
+    "email": "tarangrana48@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Tarangrana/PokeeClaude.git"
+  },
+  "homepage": "https://github.com/Tarangrana/PokeeClaude",
+  "build": {
+    "appId": "io.github.tarangrana.pokeeclaude",
+    "productName": "PokeeClaude",
+    "copyright": "Copyright © 2026 Tarang Rana. Pokémon © Nintendo / Creatures / GAME FREAK.",
+    "asar": false,
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "extraMetadata": {
+      "main": "desktop/main.mjs"
+    },
+    "files": [
+      "dist/**/*",
+      "!dist/**/*.map",
+      "!dist/**/*.test.*",
+      "desktop/**/*",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "desktop/icon.png",
+      "category": "public.app-category.developer-tools",
+      "identity": "-",
+      "extendInfo": {
+        "LSUIElement": true
+      }
+    },
+    "dmg": {
+      "title": "PokeeClaude ${version}"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "desktop/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "PokeeClaude"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "desktop/icon.png",
+      "category": "Development"
+    }
+  }
+}
