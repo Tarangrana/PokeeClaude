@@ -17,7 +17,6 @@ test("Claude events map to reactions with short context", () => {
     [{ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command: "git status", description: "Show git status" } }, "running", "Show git status"],
     [{ hook_event_name: "PreToolUse", tool_name: "mcp__github__create_issue", tool_input: {} }, "working", "Using github · create_issue"],
     [{ hook_event_name: "PermissionRequest", tool_name: "Bash", tool_input: { command: "rm -rf dist" } }, "waiting", "Needs your OK · Running rm"],
-    [{ hook_event_name: "Notification", notification_type: "idle_prompt" }, "waving", "Your turn!"],
     [{ hook_event_name: "Stop" }, "success", "All done!"],
     [{ hook_event_name: "StopFailure", error: "rate_limit" }, "error", "Stopped · rate_limit"],
   ];
@@ -33,6 +32,10 @@ test("Claude events map to reactions with short context", () => {
 test("prompt text only shows when opted in", () => {
   const event = mapClaudeHook({ ...base, hook_event_name: "UserPromptSubmit", prompt: "catch them all" }, { showPrompt: true });
   assert.equal(event?.context, "“catch them all”");
+});
+
+test("the idle notice after a reply doesn't replace the done pill", () => {
+  assert.equal(mapClaudeHook({ ...base, hook_event_name: "Notification", notification_type: "idle_prompt" }), null);
 });
 
 test("SessionEnd removes the session; unknown events are ignored", () => {

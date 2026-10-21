@@ -35,3 +35,16 @@ test("Windows launcher sets the flag and forwards arguments", () => {
   const script = hookLauncherScript("C:\\Program Files\\PokeeClaude\\PokeeClaude.exe", "C:\\app\\dist\\cli.js", "win32");
   assert.equal(script, '@echo off\r\nset ELECTRON_RUN_AS_NODE=1\r\n"C:\\Program Files\\PokeeClaude\\PokeeClaude.exe" "C:\\app\\dist\\cli.js" %*\r\n');
 });
+
+test("hooks log one line per call, without prompt text", async () => {
+  const { mkdtempSync, readFileSync } = await import("node:fs");
+  const home = mkdtempSync(join(tmpdir(), "pokee-log-"));
+  const out = execFileSync(process.execPath, ["--import", "tsx", join(import.meta.dirname, "cli.ts"), "hook", "--agent", "claude"], {
+    input: JSON.stringify({ hook_event_name: "UserPromptSubmit", session_id: "s", cwd: "/w/demo", prompt: "my secret plan" }),
+    env: { ...process.env, POKEECLAUDE_HOME: home, POKEECLAUDE_PORT: "1" },
+  }).toString();
+  assert.equal(out, ""); // hooks must print nothing
+  const log = readFileSync(join(home, "activity.log"), "utf8");
+  assert.match(log, /claude UserPromptSubmit project=demo -> thinking \(pet not running\)\n$/);
+  assert.doesNotMatch(log, /secret/);
+});

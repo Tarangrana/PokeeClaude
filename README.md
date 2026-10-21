@@ -21,8 +21,11 @@ Pokémon of your choice as the pet.
   It fades away on its own while Claude works, and comes back when you hover.
 - **Tells you when Claude is done:** the pet jumps and a green pill shows
   "Done in 2m 14s · 3 files · 4 commands" until you've seen it. Longer turns
-  also send a system notification with a sound (turn off under ⌄ → Notify when done).
-- **Hover toolbar:** ✎ change Pokémon · status pill on/off · ⌄ size, walking and notifications.
+  play a chime and send a system notification (turn off under ⌄).
+- **Hover toolbar:** ✎ change Pokémon · progress updates on/off ("Done" and
+  "Needs you" always show) · ⌄ size, walking, sound and notifications.
+- **Activity log:** if the pet ever doesn't react, tray → **Open activity log**
+  shows each hook Claude sent (event names only, no prompts or code).
 - **Reacts:** thinks, works, waits, jumps when done, greys out on errors.
 - **Multi-session:** a session waiting on you takes priority; the others show
   as "+N busy".

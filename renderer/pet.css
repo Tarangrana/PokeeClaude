@@ -225,7 +225,13 @@ body.electron {
   color: var(--pill-muted);
 }
 .tool[aria-pressed="false"] svg {
-  opacity: 0.55;
+  opacity: 0.6;
+}
+.tool .slash {
+  display: none;
+}
+.tool[aria-pressed="false"] .slash {
+  display: inline;
 }
 .divider {
   width: 1px;

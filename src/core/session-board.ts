@@ -38,6 +38,13 @@ export interface PetView {
 /** Sessions with no update for this long are dropped. */
 export const SESSION_TTL_MS = 30 * 60 * 1000;
 
+/**
+ * A "busy" session that has been silent this long no longer holds the pet.
+ * Claude Code sends no event when you interrupt a turn (Esc), so without this
+ * an interrupted session would hide every later "done" for half an hour.
+ */
+export const BUSY_STALE_MS = 5 * 60 * 1000;
+
 interface TurnStats {
   startedAt: number | null;
   files: Set<string>;
@@ -100,13 +107,13 @@ export class SessionBoard {
       }
     }
     const all = [...this.sessions.values()];
-    const busy = all.filter(isBusy);
+    const busy = all.filter((s) => isBusy(s) && now - s.updatedAt <= BUSY_STALE_MS);
     const ranked = [...busy].sort((a, b) => rank(b) - rank(a) || b.updatedAt - a.updatedAt);
     const latest = [...all].sort((a, b) => b.updatedAt - a.updatedAt)[0] ?? null;
     const focus = ranked[0] ?? latest;
     return {
       focus,
-      othersActive: Math.max(0, busy.length - (focus && isBusy(focus) ? 1 : 0)),
+      othersActive: Math.max(0, busy.length - (focus && busy.includes(focus) ? 1 : 0)),
       sessions: all.length,
     };
   }
