@@ -42,7 +42,7 @@ export function mapClaudeHook(payload: unknown, options: AdapterOptions = {}): P
     project: projectName(str(payload.cwd)),
     at: options.now ?? Date.now(),
   } as const;
-  const event = (reaction: Reaction, context: string, extra: { ended?: true } = {}): PetEvent => ({
+  const event = (reaction: Reaction, context: string, extra: Pick<PetEvent, "ended" | "phase" | "file"> = {}): PetEvent => ({
     ...base,
     reaction,
     context: clip(context),
@@ -54,11 +54,12 @@ export function mapClaudeHook(payload: unknown, options: AdapterOptions = {}): P
       return event("waving", str(payload.source) === "resume" ? "Back again!" : "Ready to help!");
     case "UserPromptSubmit": {
       const prompt = str(payload.prompt);
-      return event("thinking", options.showPrompt && prompt ? `“${clip(prompt, 44)}”` : "Thinking…");
+      return event("thinking", options.showPrompt && prompt ? `“${clip(prompt, 44)}”` : "Thinking…", { phase: "start" });
     }
     case "PreToolUse": {
       const { reaction, context } = describeTool(toolName, toolInput);
-      return event(reaction, context);
+      const file = reaction === "editing" ? fileLabel(toolInput.file_path) || fileLabel(toolInput.notebook_path) : "";
+      return event(reaction, context, file ? { file } : {});
     }
     case "PermissionRequest": {
       const { context } = describeTool(toolName, toolInput);
@@ -71,11 +72,14 @@ export function mapClaudeHook(payload: unknown, options: AdapterOptions = {}): P
       if (type === "auth_success") return null;
       return event("waiting", str(payload.message) || "Needs your attention");
     }
-    case "Stop":
-      return event("success", "All done!");
+    case "Stop": {
+      // Newer Claude Code versions include the final reply; only shown when opted in.
+      const reply = str(payload.last_assistant_message);
+      return event("success", options.showPrompt && reply ? clip(reply, 56) : "All done!", { phase: "end" });
+    }
     case "StopFailure": {
       const reason = str(payload.error) || str(payload.error_type) || str(payload.reason);
-      return event("error", reason ? `Stopped · ${reason}` : "Something went wrong");
+      return event("error", reason ? `Stopped · ${reason}` : "Something went wrong", { phase: "end" });
     }
     case "SessionEnd":
       return event("idle", "Bye!", { ended: true });

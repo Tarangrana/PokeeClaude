@@ -18,6 +18,10 @@ export interface PetEvent {
   readonly context: string;
   /** Session ended: drop it from the board. */
   readonly ended?: boolean;
+  /** "start": the user sent a prompt. "end": the agent finished its reply. */
+  readonly phase?: "start" | "end";
+  /** File name (no path) the agent is changing, for the end-of-turn summary. */
+  readonly file?: string;
   readonly at: number;
 }
 
@@ -42,6 +46,8 @@ export function parsePetEvent(value: unknown): PetEvent | null {
     reaction: r.reaction,
     context: typeof r.context === "string" ? clip(r.context) : "",
     ...(r.ended === true ? { ended: true } : {}),
+    ...(r.phase === "start" || r.phase === "end" ? { phase: r.phase } : {}),
+    ...(typeof r.file === "string" && r.file ? { file: clip(r.file, 80) } : {}),
     at: typeof r.at === "number" && Number.isFinite(r.at) ? r.at : Date.now(),
   };
 }

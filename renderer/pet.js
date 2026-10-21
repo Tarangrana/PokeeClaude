@@ -1,44 +1,56 @@
 // Desktop pet renderer. Runs in the Electron window and in a normal browser
-// tab (`pokeeclaude serve`). Plays a Codex-format spritesheet and shows what
-// the coding agent is doing in a speech bubble.
-import { ANIMATION_SPECS, FRAME_HEIGHT, FRAME_WIDTH, frameAt, frameRect } from "/lib/pet-format.js";
-import { ONE_SHOT_REACTIONS, REACTION_ANIMATION, REACTION_ICON } from "/lib/reactions.js";
+// tab (`pokeeclaude serve`). Plays a Codex-format spritesheet, shows what the
+// coding agent is doing in a dark status pill, and offers a hover toolbar.
+import { FRAME_HEIGHT, FRAME_WIDTH, frameAt, frameRect } from "/lib/pet-format.js";
+import { ONE_SHOT_REACTIONS, REACTION_ANIMATION } from "/lib/reactions.js";
 
 const $ = (id) => document.getElementById(id);
 const petEl = $("pet");
 const canvas = $("sprite");
 const ctx = canvas.getContext("2d");
-const bubble = $("bubble");
+const statusEl = $("bubble");
+const toolbar = $("toolbar");
+const menu = $("menu");
 
 const RESTING = new Set(["idle", "success", "waving"]);
 const AGENT_LABEL = { claude: "Claude", codex: "Codex", manual: "" };
 const WALK_SPEED = 70; // px per second
 
+/** How long each kind of status stays up before fading away on its own. */
+const STATUS_LIFETIME = {
+  busy: 6000, // the pet's animation keeps showing activity after the pill fades
+  hello: 4000,
+  attention: 0, // stays until the agent moves on
+  done: 10 * 60 * 1000, // stays until you notice it (hover / click) or the next prompt
+};
+
 const host = window.pokee ?? createBrowserHost();
 if (window.pokee) document.body.classList.add("electron");
 
 const state = {
-  config: { showBubble: true, wander: true, scale: 0.75 },
+  config: { showBubble: true, wander: true, scale: 0.75, showPrompt: false, notifyDone: true },
   sheet: null,
+  petId: null,
   petName: "",
   reaction: "idle",
   animation: "idle",
   startedAt: performance.now(),
   oneShotDone: false,
-  walk: null, // { dir, until }
+  walk: null,
   nextWalkAt: performance.now() + 4000,
   dragging: false,
+  hovering: false,
   lastDrawn: "",
   focus: null,
   othersActive: 0,
-  hideBubbleAt: 0,
+  status: { mode: null, hideAt: 0, seen: false },
+  toolbarHideTimer: 0,
 };
 
 // ---------- data ----------
 
 async function init() {
-  const response = await fetch("/api/state");
-  const snapshot = await response.json();
+  const snapshot = await (await fetch("/api/state")).json();
   applyConfig(snapshot.config, snapshot.pet);
   applyView(snapshot.view, true);
   connect();
@@ -47,10 +59,7 @@ async function init() {
 
 function connect() {
   const source = new EventSource("/api/events");
-  source.addEventListener("view", (e) => {
-    const { view } = JSON.parse(e.data);
-    applyView(view, false);
-  });
+  source.addEventListener("view", (e) => applyView(JSON.parse(e.data).view, false));
   source.addEventListener("config", (e) => {
     const { config, pet } = JSON.parse(e.data);
     applyConfig(config, pet);
@@ -62,11 +71,12 @@ function applyConfig(config, pet) {
   const size = state.config.scale;
   canvas.style.width = `${Math.round(FRAME_WIDTH * size)}px`;
   canvas.style.height = `${Math.round(FRAME_HEIGHT * size)}px`;
-  if (!state.config.showBubble) bubble.hidden = true;
+  $("tb-bubble").setAttribute("aria-pressed", String(state.config.showBubble));
+  if (!state.config.showBubble) hideStatus();
+  if (!menu.hidden) renderMenu();
   $("empty").hidden = Boolean(pet);
   petEl.hidden = !pet;
-  if (!pet) return;
-  if (pet.id === state.petId) return;
+  if (!pet || pet.id === state.petId) return;
   state.petId = pet.id;
   state.petName = pet.displayName;
   const img = new Image();
@@ -74,7 +84,7 @@ function applyConfig(config, pet) {
     state.sheet = img;
     state.lastDrawn = "";
     play("waving");
-    showBubble({ reaction: "waving", context: `${pet.displayName} is here!`, project: "", agent: "manual" }, 4000);
+    showStatus({ reaction: "waving", context: `${pet.displayName} is here!`, project: "", agent: "manual" });
   };
   img.src = `${pet.sheet}?v=${Date.now()}`;
 }
@@ -86,15 +96,15 @@ function applyView(view, initial) {
   state.othersActive = view?.othersActive ?? 0;
   if (!focus) {
     play("idle");
-    hideBubbleSoon(0);
+    hideStatus();
     return;
   }
   const changed = !previous || previous.updatedAt !== focus.updatedAt || previous.sessionId !== focus.sessionId;
   if (!changed) return;
-  // On first load don't replay a finished celebration.
+  // On first load don't replay an old celebration.
   if (initial && RESTING.has(focus.reaction)) return;
   play(focus.reaction);
-  showBubble(focus, RESTING.has(focus.reaction) ? 7000 : 0);
+  showStatus(focus);
 }
 
 // ---------- animation ----------
@@ -108,7 +118,7 @@ function play(reaction) {
   $("alert").hidden = reaction !== "waiting";
 }
 
-function currentAnimation(now) {
+function currentAnimation() {
   if (state.walk) return state.walk.dir < 0 ? "running-left" : "running-right";
   if (state.oneShotDone) return "idle";
   return state.animation;
@@ -116,7 +126,7 @@ function currentAnimation(now) {
 
 function tick(now) {
   maybeWalk(now);
-  const animation = currentAnimation(now);
+  const animation = currentAnimation();
   const started = state.walk ? state.walk.startedAt : state.startedAt;
   const { frame, done } = frameAt(animation, now - started);
   if (done && ONE_SHOT_REACTIONS.has(state.reaction) && !state.oneShotDone) {
@@ -124,10 +134,7 @@ function tick(now) {
     state.startedAt = now;
   }
   draw(animation, frame);
-  if (state.hideBubbleAt && now > state.hideBubbleAt) {
-    state.hideBubbleAt = 0;
-    bubble.hidden = true;
-  }
+  if (state.status.hideAt && now > state.status.hideAt && !state.hovering) hideStatus();
   requestAnimationFrame(tick);
 }
 
@@ -146,7 +153,8 @@ function draw(animation, frame) {
 
 function maybeWalk(now) {
   const resting = RESTING.has(state.reaction) && (state.oneShotDone || state.reaction === "idle");
-  if (!state.config.wander || state.dragging || !resting) {
+  if (!state.config.wander || state.dragging || state.hovering || !resting) {
+    if (state.walk) state.lastDrawn = "";
     state.walk = null;
     state.nextWalkAt = Math.max(state.nextWalkAt, now + 3000);
     return;
@@ -163,37 +171,51 @@ function maybeWalk(now) {
     state.nextWalkAt = now + 7000 + Math.random() * 12000;
     return;
   }
-  const dx = state.walk.dir * WALK_SPEED * dt;
-  Promise.resolve(host.moveBy(dx)).then((result) => {
+  Promise.resolve(host.moveBy(state.walk.dir * WALK_SPEED * dt)).then((result) => {
     if (result?.atEdge && state.walk) state.walk.dir *= -1;
   });
 }
 
-// ---------- bubble ----------
+// ---------- status pill ----------
 
-function showBubble(session, autoHideMs) {
+function modeFor(reaction) {
+  if (reaction === "waiting" || reaction === "error") return "attention";
+  if (reaction === "success") return "done";
+  if (reaction === "waving" || reaction === "idle") return "hello";
+  return "busy";
+}
+
+function showStatus(session) {
   if (!state.config.showBubble) return;
-  const reaction = session.reaction;
-  $("bubble-icon").textContent = REACTION_ICON[reaction] ?? "";
-  $("bubble-text").textContent = session.context || defaultText(reaction);
+  const mode = modeFor(session.reaction);
+  statusEl.dataset.mode = mode;
+  $("bubble-text").textContent = session.context || defaultText(session.reaction);
   $("bubble-project").textContent = session.project || "";
   $("bubble-agent").textContent = AGENT_LABEL[session.agent] ?? "";
   const others = $("bubble-others");
   others.hidden = state.othersActive < 1;
   others.textContent = `+${state.othersActive} busy`;
-  bubble.classList.toggle("attention", reaction === "waiting" || reaction === "error");
-  bubble.classList.toggle("done", reaction === "success");
-  bubble.hidden = false;
-  // Restart the pop animation.
-  bubble.style.animation = "none";
-  void bubble.offsetWidth;
-  bubble.style.animation = "";
-  state.hideBubbleAt = autoHideMs ? performance.now() + autoHideMs : 0;
+  statusEl.classList.remove("is-hidden");
+  const life = STATUS_LIFETIME[mode];
+  state.status = { mode, hideAt: life ? performance.now() + life : 0, seen: false };
 }
 
-function hideBubbleSoon(ms) {
-  state.hideBubbleAt = performance.now() + ms;
+function hideStatus() {
+  statusEl.classList.add("is-hidden");
+  state.status.hideAt = 0;
 }
+
+/** Bring the last status back for a moment (hover or click on the pet). */
+function peekStatus() {
+  if (!state.focus || !state.config.showBubble) return;
+  if (statusEl.classList.contains("is-hidden")) showStatus(state.focus);
+  if (state.status.mode === "done") state.status.seen = true;
+}
+
+statusEl.addEventListener("click", () => {
+  // Clicking a "done" pill dismisses it.
+  if (state.status.mode === "done" || state.status.mode === "hello") hideStatus();
+});
 
 function defaultText(reaction) {
   return {
@@ -210,22 +232,103 @@ function defaultText(reaction) {
   }[reaction];
 }
 
-// ---------- interaction ----------
+// ---------- hover toolbar ----------
+
+function showToolbar() {
+  clearTimeout(state.toolbarHideTimer);
+  toolbar.classList.remove("is-hidden");
+}
+
+function hideToolbarSoon(delay = 1200) {
+  clearTimeout(state.toolbarHideTimer);
+  state.toolbarHideTimer = setTimeout(() => {
+    if (state.hovering || !menu.hidden || state.dragging) return;
+    toolbar.classList.add("is-hidden");
+  }, delay);
+}
+
+petEl.addEventListener("pointerenter", () => {
+  state.hovering = true;
+  host.setInteractive?.(true);
+  showToolbar();
+  peekStatus();
+});
+
+petEl.addEventListener("pointerleave", () => {
+  state.hovering = false;
+  if (!state.dragging && menu.hidden) host.setInteractive?.(false);
+  hideToolbarSoon();
+  // Let a peeked or already-seen status fade shortly after you look away.
+  const { mode, seen } = state.status;
+  if (mode === "busy" || mode === "hello" || (mode === "done" && seen)) {
+    state.status.hideAt = performance.now() + (mode === "done" ? 3000 : 1500);
+  }
+});
+
+for (const el of [toolbar, menu, statusEl]) {
+  // Buttons and pills shouldn't start a drag.
+  el.addEventListener("pointerdown", (e) => e.stopPropagation());
+}
+
+$("tb-setup").addEventListener("click", () => {
+  if (host.openSetup) host.openSetup();
+  else window.open("/setup", "_blank");
+});
+
+$("tb-bubble").addEventListener("click", () => setConfig({ showBubble: !state.config.showBubble }));
+
+$("tb-more").addEventListener("click", () => {
+  if (host.openMenu) return host.openMenu();
+  menu.hidden = !menu.hidden;
+  if (!menu.hidden) renderMenu();
+  else hideToolbarSoon();
+});
+
+document.addEventListener("pointerdown", (e) => {
+  if (!menu.hidden && !menu.contains(e.target) && e.target.closest("#tb-more") === null) {
+    menu.hidden = true;
+    hideToolbarSoon();
+  }
+});
+
+function renderMenu() {
+  const c = state.config;
+  const item = (label, checked, onClick) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.setAttribute("role", "menuitemcheckbox");
+    button.setAttribute("aria-checked", String(checked));
+    button.innerHTML = `<span></span><span class="check">${checked ? "✓" : ""}</span>`;
+    button.firstChild.textContent = label;
+    button.addEventListener("click", onClick);
+    return button;
+  };
+  const label = (text) => Object.assign(document.createElement("div"), { className: "label", textContent: text });
+  menu.replaceChildren(
+    label("Size"),
+    ...[["Small", 0.5], ["Medium", 0.75], ["Large", 1]].map(([name, scale]) => item(name, c.scale === scale, () => setConfig({ scale }))),
+    label("Behaviour"),
+    item("Walk around", c.wander, () => setConfig({ wander: !c.wander })),
+    item("Notify when done", c.notifyDone, () => setConfig({ notifyDone: !c.notifyDone })),
+    item("Show prompt text", c.showPrompt, () => setConfig({ showPrompt: !c.showPrompt })),
+  );
+}
+
+function setConfig(patch) {
+  return fetch("/api/config", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(patch) });
+}
+
+// ---------- drag & poke ----------
 
 let pointerStart = null;
 
-petEl.addEventListener("pointerenter", () => host.setInteractive?.(true));
-petEl.addEventListener("pointerleave", () => {
-  if (!state.dragging) host.setInteractive?.(false);
-});
-
-petEl.addEventListener("pointerdown", (e) => {
+canvas.addEventListener("pointerdown", (e) => {
   pointerStart = { x: e.screenX, y: e.screenY, moved: false };
-  petEl.setPointerCapture(e.pointerId);
+  canvas.setPointerCapture(e.pointerId);
   host.dragStart?.(e.screenX, e.screenY, e.clientX, e.clientY);
 });
 
-petEl.addEventListener("pointermove", (e) => {
+canvas.addEventListener("pointermove", (e) => {
   if (!pointerStart) return;
   if (!pointerStart.moved && Math.hypot(e.screenX - pointerStart.x, e.screenY - pointerStart.y) < 4) return;
   pointerStart.moved = true;
@@ -234,17 +337,20 @@ petEl.addEventListener("pointermove", (e) => {
   host.dragMove?.(e.screenX, e.screenY, e.clientX, e.clientY);
 });
 
-petEl.addEventListener("pointerup", () => {
+canvas.addEventListener("pointerup", () => {
   const wasClick = pointerStart && !pointerStart.moved;
   pointerStart = null;
   state.dragging = false;
   petEl.classList.remove("dragging");
   host.dragEnd?.();
-  if (wasClick) {
-    // A poke: say hi and repeat the latest status.
-    play("waving");
-    const focus = state.focus;
-    showBubble(focus ?? { reaction: "waving", context: `${state.petName} says hi!`, project: "", agent: "manual" }, 5000);
+  if (!wasClick) return;
+  // A poke: say hi and show the latest status again.
+  play("waving");
+  if (state.focus) {
+    showStatus(state.focus);
+    if (state.status.mode === "done") state.status.seen = true;
+  } else {
+    showStatus({ reaction: "waving", context: `${state.petName} says hi!`, project: "", agent: "manual" });
   }
 });
 
@@ -286,4 +392,4 @@ init().catch((error) => {
 });
 
 // Exposed for debugging in DevTools.
-window.__pokee = { state, play, ANIMATION_SPECS };
+window.__pokee = { state, play, showStatus, hideStatus };

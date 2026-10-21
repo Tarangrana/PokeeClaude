@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { bridgePort, loadConfig, saveConfig, type PokeeConfig } from "../config.js";
 import { parsePetEvent, type PetEvent } from "../core/pet-event.js";
-import { SessionBoard, type PetView } from "../core/session-board.js";
+import { SessionBoard, type PetView, type SessionState } from "../core/session-board.js";
 import { findPet, listPets, spritesheetFile } from "../pets.js";
 import { VERSION } from "../version.js";
 
@@ -34,8 +34,13 @@ export interface Bridge {
   close(): Promise<void>;
 }
 
+export interface BridgeOptions {
+  /** Called after every event, with the session's updated state (e.g. to notify when a turn ends). */
+  readonly onEvent?: (event: PetEvent, session: SessionState | undefined) => void;
+}
+
 /** Start the local bridge on 127.0.0.1. Rejects with EADDRINUSE if one is already running. */
-export function startBridge(port = bridgePort()): Promise<Bridge> {
+export function startBridge(port = bridgePort(), options: BridgeOptions = {}): Promise<Bridge> {
   const board = new SessionBoard();
   const clients = new Set<ServerResponse>();
   let lastEvent: PetEvent | null = null;
@@ -56,6 +61,11 @@ export function startBridge(port = bridgePort()): Promise<Bridge> {
     lastEvent = event;
     const view = board.apply(event);
     broadcast("view", { view, event });
+    try {
+      options.onEvent?.(event, board.get(event.agent, event.sessionId));
+    } catch {
+      // A listener must never break the bridge.
+    }
     return view;
   };
 
@@ -194,7 +204,7 @@ function pickConfig(body: unknown): Partial<PokeeConfig> {
   if (!body || typeof body !== "object") return {};
   const r = body as Record<string, unknown>;
   const patch: Record<string, unknown> = {};
-  for (const key of ["activePet", "showPrompt", "showBubble", "wander", "scale"]) if (key in r) patch[key] = r[key];
+  for (const key of ["activePet", "showPrompt", "showBubble", "wander", "scale", "notifyDone"]) if (key in r) patch[key] = r[key];
   return patch as Partial<PokeeConfig>;
 }
 
