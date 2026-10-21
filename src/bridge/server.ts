@@ -60,7 +60,7 @@ export function startBridge(port = bridgePort(), options: BridgeOptions = {}): P
   const push = (event: PetEvent) => {
     lastEvent = event;
     const view = board.apply(event);
-    broadcast("view", { view, event });
+    broadcast("view", { view, event, session: board.get(event.agent, event.sessionId) ?? null });
     try {
       options.onEvent?.(event, board.get(event.agent, event.sessionId));
     } catch {
@@ -204,7 +204,7 @@ function pickConfig(body: unknown): Partial<PokeeConfig> {
   if (!body || typeof body !== "object") return {};
   const r = body as Record<string, unknown>;
   const patch: Record<string, unknown> = {};
-  for (const key of ["activePet", "showPrompt", "showBubble", "wander", "scale", "notifyDone"]) if (key in r) patch[key] = r[key];
+  for (const key of ["activePet", "showPrompt", "showBubble", "wander", "scale", "notifyDone", "soundDone"]) if (key in r) patch[key] = r[key];
   return patch as Partial<PokeeConfig>;
 }
 

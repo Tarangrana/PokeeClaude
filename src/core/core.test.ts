@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { ANIMATION_SPECS, ANIMATIONS, COLUMNS, frameAt, frameRect, SHEET_HEIGHT_V1, SHEET_WIDTH, validatePetMetadata } from "./pet-format.js";
 import { clip, parsePetEvent, type PetEvent } from "./pet-event.js";
 import { REACTION_ANIMATION, REACTIONS } from "./reactions.js";
-import { formatDuration, SessionBoard, SESSION_TTL_MS, summarize } from "./session-board.js";
+import { BUSY_STALE_MS, formatDuration, SessionBoard, SESSION_TTL_MS, summarize } from "./session-board.js";
 
 test("atlas matches the Codex 8x9 grid of 192x208 frames", () => {
   assert.equal(SHEET_WIDTH, 1536);
@@ -114,4 +114,17 @@ test("turn summary keeps custom replies and handles a missing start", () => {
   const failed = board.apply(ev("x", "error", 9_000, { phase: "end", context: "Stopped · rate_limit" }));
   assert.equal(failed.focus?.context, "Stopped · rate_limit");
   assert.equal(failed.focus?.turn?.ok, false);
+});
+
+test("an interrupted (silent) busy session stops hiding newer sessions", () => {
+  const board = new SessionBoard();
+  board.apply(ev("stuck", "editing", 0)); // e.g. turn interrupted with Esc: no Stop ever comes
+  const later = BUSY_STALE_MS + 1_000;
+  const view = board.apply(ev("fresh", "success", later, { phase: "end", context: "All done!" }));
+  assert.equal(view.focus?.sessionId, "fresh");
+  assert.equal(view.othersActive, 0);
+  // While still recent, a busy session keeps priority (by design).
+  const board2 = new SessionBoard();
+  board2.apply(ev("busy", "editing", 0));
+  assert.equal(board2.apply(ev("other", "success", 1_000)).focus?.sessionId, "busy");
 });

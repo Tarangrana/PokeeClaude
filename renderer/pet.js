@@ -28,7 +28,7 @@ const host = window.pokee ?? createBrowserHost();
 if (window.pokee) document.body.classList.add("electron");
 
 const state = {
-  config: { showBubble: true, wander: true, scale: 0.75, showPrompt: false, notifyDone: true },
+  config: { showBubble: true, wander: true, scale: 0.75, showPrompt: false, notifyDone: true, soundDone: true },
   sheet: null,
   petId: null,
   petName: "",
@@ -59,7 +59,20 @@ async function init() {
 
 function connect() {
   const source = new EventSource("/api/events");
-  source.addEventListener("view", (e) => applyView(JSON.parse(e.data).view, false));
+  source.addEventListener("view", (e) => {
+    const { view, event, session } = JSON.parse(e.data);
+    // A finished turn always gets its moment, even if another session is
+    // still marked busy. Same for anything that needs you.
+    if (session && (event?.phase === "end" || session.reaction === "waiting")) {
+      state.focus = session;
+      state.othersActive = view?.othersActive ?? 0;
+      play(session.reaction);
+      showStatus(session);
+      if (event?.phase === "end") chime(session.turn?.ok !== false);
+      return;
+    }
+    applyView(view, false);
+  });
   source.addEventListener("config", (e) => {
     const { config, pet } = JSON.parse(e.data);
     applyConfig(config, pet);
@@ -72,7 +85,7 @@ function applyConfig(config, pet) {
   canvas.style.width = `${Math.round(FRAME_WIDTH * size)}px`;
   canvas.style.height = `${Math.round(FRAME_HEIGHT * size)}px`;
   $("tb-bubble").setAttribute("aria-pressed", String(state.config.showBubble));
-  if (!state.config.showBubble) hideStatus();
+  if (!state.config.showBubble && state.status.mode === "busy") hideStatus();
   if (!menu.hidden) renderMenu();
   $("empty").hidden = Boolean(pet);
   petEl.hidden = !pet;
@@ -185,9 +198,14 @@ function modeFor(reaction) {
   return "busy";
 }
 
-function showStatus(session) {
-  if (!state.config.showBubble) return;
+/** The on/off switch only hides progress updates; "done" and "needs you" always show. */
+function isOptional(mode) {
+  return mode === "busy" || mode === "hello";
+}
+
+function showStatus(session, { force = false } = {}) {
   const mode = modeFor(session.reaction);
+  if (!state.config.showBubble && isOptional(mode) && !force) return;
   statusEl.dataset.mode = mode;
   $("bubble-text").textContent = session.context || defaultText(session.reaction);
   $("bubble-project").textContent = session.project || "";
@@ -207,8 +225,9 @@ function hideStatus() {
 
 /** Bring the last status back for a moment (hover or click on the pet). */
 function peekStatus() {
-  if (!state.focus || !state.config.showBubble) return;
-  if (statusEl.classList.contains("is-hidden")) showStatus(state.focus);
+  if (!state.focus) return;
+  // Hovering is an explicit "what's going on?", so it shows even with updates off.
+  if (statusEl.classList.contains("is-hidden")) showStatus(state.focus, { force: true });
   if (state.status.mode === "done") state.status.seen = true;
 }
 
@@ -230,6 +249,35 @@ function defaultText(reaction) {
     success: "All done!",
     error: "Something went wrong",
   }[reaction];
+}
+
+// ---------- sound ----------
+
+let audio = null;
+
+/** A short two-note chime (rising when done, falling on an error). No sound files needed. */
+function chime(ok) {
+  if (!state.config.soundDone) return;
+  try {
+    audio ??= new AudioContext();
+    if (audio.state === "suspended") audio.resume();
+    const notes = ok ? [880, 1318.5] : [659.3, 440];
+    notes.forEach((freq, i) => {
+      const start = audio.currentTime + i * 0.13;
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.18, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
+      osc.connect(gain).connect(audio.destination);
+      osc.start(start);
+      osc.stop(start + 0.4);
+    });
+  } catch {
+    // No audio device: the pill and the jump still show.
+  }
 }
 
 // ---------- hover toolbar ----------
@@ -275,7 +323,15 @@ $("tb-setup").addEventListener("click", () => {
   else window.open("/setup", "_blank");
 });
 
-$("tb-bubble").addEventListener("click", () => setConfig({ showBubble: !state.config.showBubble }));
+$("tb-bubble").addEventListener("click", () => {
+  const on = !state.config.showBubble;
+  setConfig({ showBubble: on });
+  // Say what the button did, so it's never a mystery.
+  showStatus(
+    { reaction: "waving", context: on ? "Progress updates on" : "Progress updates off · Done and alerts still show", project: "", agent: "manual" },
+    { force: true },
+  );
+});
 
 $("tb-more").addEventListener("click", () => {
   if (host.openMenu) return host.openMenu();
@@ -310,6 +366,7 @@ function renderMenu() {
     label("Behaviour"),
     item("Walk around", c.wander, () => setConfig({ wander: !c.wander })),
     item("Notify when done", c.notifyDone, () => setConfig({ notifyDone: !c.notifyDone })),
+    item("Sound when done", c.soundDone, () => setConfig({ soundDone: !c.soundDone })),
     item("Show prompt text", c.showPrompt, () => setConfig({ showPrompt: !c.showPrompt })),
   );
 }
@@ -347,7 +404,7 @@ canvas.addEventListener("pointerup", () => {
   // A poke: say hi and show the latest status again.
   play("waving");
   if (state.focus) {
-    showStatus(state.focus);
+    showStatus(state.focus, { force: true });
     if (state.status.mode === "done") state.status.seen = true;
   } else {
     showStatus({ reaction: "waving", context: `${state.petName} says hi!`, project: "", agent: "manual" });
@@ -392,4 +449,4 @@ init().catch((error) => {
 });
 
 // Exposed for debugging in DevTools.
-window.__pokee = { state, play, showStatus, hideStatus };
+window.__pokee = { state, play, showStatus, hideStatus, chime };

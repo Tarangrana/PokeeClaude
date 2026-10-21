@@ -9,6 +9,7 @@ import { startBridge } from "../dist/bridge/server.js";
 import { bridgePort, loadConfig } from "../dist/config.js";
 import { findPet, listPets } from "../dist/pets.js";
 import { refreshHookLauncher, setupStatus } from "../dist/setup.js";
+import { activityLogPath } from "../dist/hook.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const WIDTH = 280;
@@ -71,6 +72,8 @@ function createWindow(url) {
     focusable: true,
     backgroundColor: "#00000000",
     webPreferences: {
+      // The pet plays a chime when Claude finishes, without a click first.
+      autoplayPolicy: "no-user-gesture-required",
       preload: join(here, "preload.cjs"),
       contextIsolation: true,
       sandbox: true,
@@ -215,10 +218,11 @@ function buildMenu(url, refresh) {
         }))
       : [{ label: "No pets yet: choose one…", click: () => openSetup() }]),
     { type: "separator" },
-    { label: "Status bubble", type: "checkbox", checked: config.showBubble, click: (item) => set({ showBubble: item.checked }) },
+    { label: "Show progress updates", type: "checkbox", checked: config.showBubble, click: (item) => set({ showBubble: item.checked }) },
     { label: "Show prompt text", type: "checkbox", checked: config.showPrompt, click: (item) => set({ showPrompt: item.checked }) },
     { label: "Walk around", type: "checkbox", checked: config.wander, click: (item) => set({ wander: item.checked }) },
     { label: "Notify when Claude is done", type: "checkbox", checked: config.notifyDone, click: (item) => set({ notifyDone: item.checked }) },
+    { label: "Sound when Claude is done", type: "checkbox", checked: config.soundDone, click: (item) => set({ soundDone: item.checked }) },
     {
       label: "Size",
       submenu: [0.5, 0.75, 1].map((scale) => ({
@@ -230,6 +234,7 @@ function buildMenu(url, refresh) {
     },
     { type: "separator" },
     { label: "Open in browser", click: () => shell.openExternal(url) },
+    { label: "Open activity log", click: () => shell.openPath(activityLogPath()) },
     { label: "Bring pet back", click: () => resetPosition() },
     { label: "Quit", role: "quit" },
   ]);
