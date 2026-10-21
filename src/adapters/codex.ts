@@ -31,7 +31,7 @@ export function mapCodexPayload(payload: unknown, options: AdapterOptions = {}):
   if (type === "agent-turn-complete") {
     const last = str(record["last-assistant-message"]);
     const context = options.showPrompt && last ? clip(last, 48) : "All done!";
-    return { ...base, reaction: "success", context };
+    return { ...base, reaction: "success", context, phase: "end" };
   }
   if (type.includes("approval")) {
     return { ...base, reaction: "waiting", context: "Needs your OK" };

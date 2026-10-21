@@ -16,8 +16,13 @@ Pokémon of your choice as the pet.
             (Pikachu)   ← always on top, walks around when idle
 ```
 
-- **Shows context:** "Thinking…", "Editing cli.ts", "Run the test suite",
-  "Needs your OK · Running rm", "All done!", plus the project name.
+- **Shows context:** a dark status pill with "Thinking…", "Editing cli.ts",
+  "Run the test suite", "Needs your OK · Running rm", plus the project name.
+  It fades away on its own while Claude works, and comes back when you hover.
+- **Tells you when Claude is done:** the pet jumps and a green pill shows
+  "Done in 2m 14s · 3 files · 4 commands" until you've seen it. Longer turns
+  also send a system notification with a sound (turn off under ⌄ → Notify when done).
+- **Hover toolbar:** ✎ change Pokémon · status pill on/off · ⌄ size, walking and notifications.
 - **Reacts:** thinks, works, waits, jumps when done, greys out on errors.
 - **Multi-session:** a session waiting on you takes priority; the others show
   as "+N busy".

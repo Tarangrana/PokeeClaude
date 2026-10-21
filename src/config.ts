@@ -15,6 +15,8 @@ export interface PokeeConfig {
   readonly wander: boolean;
   /** Display scale of the 192x208 frame. */
   readonly scale: number;
+  /** System notification when the agent finishes a longer turn. */
+  readonly notifyDone: boolean;
 }
 
 export const DEFAULT_CONFIG: PokeeConfig = {
@@ -23,6 +25,7 @@ export const DEFAULT_CONFIG: PokeeConfig = {
   showBubble: true,
   wander: true,
   scale: 0.75,
+  notifyDone: true,
 };
 
 export function homeDir(): string {
@@ -74,6 +77,7 @@ export function normalizeConfig(raw: Partial<PokeeConfig>): PokeeConfig {
     showBubble: typeof raw.showBubble === "boolean" ? raw.showBubble : DEFAULT_CONFIG.showBubble,
     wander: typeof raw.wander === "boolean" ? raw.wander : DEFAULT_CONFIG.wander,
     scale,
+    notifyDone: typeof raw.notifyDone === "boolean" ? raw.notifyDone : DEFAULT_CONFIG.notifyDone,
   };
 }
 

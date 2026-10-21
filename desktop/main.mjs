@@ -1,18 +1,18 @@
 // PokeeClaude desktop shell: a transparent, always-on-top window that hosts
 // the pet renderer, plus a tray menu. The bridge server runs in-process.
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, screen, shell, Tray } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, nativeImage, Notification, screen, shell, Tray } from "electron";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { getFromBridge, postToBridge } from "../dist/bridge/send.js";
 import { startBridge } from "../dist/bridge/server.js";
 import { bridgePort, loadConfig } from "../dist/config.js";
-import { listPets } from "../dist/pets.js";
+import { findPet, listPets } from "../dist/pets.js";
 import { refreshHookLauncher, setupStatus } from "../dist/setup.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const WIDTH = 280;
-const HEIGHT = 330;
+const HEIGHT = 390; // room for the status pill and hover toolbar above the pet
 
 if (process.platform === "linux") app.commandLine.appendSwitch("enable-transparent-visuals");
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -22,6 +22,7 @@ let win = null;
 let setupWin = null;
 let bridgeUrl = null;
 let tray = null;
+let refreshTray = null;
 let bridge = null;
 let drag = null;
 
@@ -44,7 +45,7 @@ app.on("before-quit", () => bridge?.close());
 
 async function ensureBridge() {
   try {
-    bridge = await startBridge();
+    bridge = await startBridge(undefined, { onEvent: notifyWhenDone });
     return bridge.url;
   } catch (error) {
     // Someone (e.g. `pokeeclaude serve`) already runs a bridge: reuse it.
@@ -122,6 +123,35 @@ function openSetup() {
   setupWin.loadURL(`${bridgeUrl}setup`);
 }
 
+/** Long-running turns get a system notification when the agent finishes. */
+const NOTIFY_AFTER_MS = 15_000;
+
+function notifyWhenDone(event, session) {
+  if (event.phase !== "end" || !session?.turn) return;
+  const config = loadConfig();
+  if (!config.notifyDone || !Notification.isSupported()) return;
+  const { turn } = session;
+  // Quick replies happen while you're watching; only ping for longer work.
+  if (turn.ok && turn.durationMs !== null && turn.durationMs < NOTIFY_AFTER_MS) return;
+  const pet = findPet(config.activePet) ?? listPets()[0];
+  const who = event.agent === "codex" ? "Codex" : "Claude";
+  const where = event.project ? ` · ${event.project}` : "";
+  const notification = new Notification({
+    title: turn.ok ? `${who} is done${where}` : `${who} stopped${where}`,
+    body: `${pet ? `${pet.metadata.displayName}: ` : ""}${session.context}`,
+    silent: false,
+  });
+  notification.on("click", () => win?.showInactive());
+  notification.show();
+}
+
+ipcMain.on("pokee:open-setup", () => openSetup());
+
+ipcMain.on("pokee:menu", () => {
+  if (!win || !bridgeUrl) return;
+  buildMenu(bridgeUrl, () => refreshTray?.()).popup({ window: win });
+});
+
 ipcMain.on("pokee:setup-done", () => {
   win?.showInactive();
 });
@@ -161,6 +191,7 @@ async function createTray(url) {
   tray = new Tray(icon);
   tray.setToolTip("PokeeClaude");
   const refresh = () => tray.setContextMenu(buildMenu(url, refresh));
+  refreshTray = refresh;
   refresh();
   tray.on("click", refresh);
   setInterval(refresh, 10_000);
@@ -184,9 +215,10 @@ function buildMenu(url, refresh) {
         }))
       : [{ label: "No pets yet: choose one…", click: () => openSetup() }]),
     { type: "separator" },
-    { label: "Speech bubble", type: "checkbox", checked: config.showBubble, click: (item) => set({ showBubble: item.checked }) },
+    { label: "Status bubble", type: "checkbox", checked: config.showBubble, click: (item) => set({ showBubble: item.checked }) },
     { label: "Show prompt text", type: "checkbox", checked: config.showPrompt, click: (item) => set({ showPrompt: item.checked }) },
     { label: "Walk around", type: "checkbox", checked: config.wander, click: (item) => set({ wander: item.checked }) },
+    { label: "Notify when Claude is done", type: "checkbox", checked: config.notifyDone, click: (item) => set({ notifyDone: item.checked }) },
     {
       label: "Size",
       submenu: [0.5, 0.75, 1].map((scale) => ({

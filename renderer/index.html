@@ -7,24 +7,44 @@
     <link rel="stylesheet" href="/pet.css" />
   </head>
   <body>
-    <div id="pet" class="pet" aria-live="polite">
-      <div id="bubble" class="bubble" hidden>
-        <div class="bubble-row">
-          <span id="bubble-icon" class="bubble-icon"></span>
-          <span id="bubble-text" class="bubble-text"></span>
-        </div>
-        <div class="bubble-meta">
-          <span id="bubble-project" class="chip"></span>
-          <span id="bubble-agent" class="chip chip-agent"></span>
-          <span id="bubble-others" class="chip chip-others" hidden></span>
-        </div>
+    <div id="pet" class="pet">
+      <!-- Status pill: what the agent is doing. Fades away on its own. -->
+      <div id="bubble" class="pill status is-hidden" role="status" aria-live="polite">
+        <span id="bubble-icon" class="status-icon" aria-hidden="true"></span>
+        <span class="status-body">
+          <span id="bubble-text" class="status-text"></span>
+          <span class="status-meta">
+            <span id="bubble-project" class="meta"></span>
+            <span id="bubble-agent" class="meta"></span>
+            <span id="bubble-others" class="meta others" hidden></span>
+          </span>
+        </span>
       </div>
+
+      <!-- Hover toolbar -->
+      <div id="toolbar" class="pill toolbar is-hidden" role="toolbar" aria-label="Pet controls">
+        <button id="tb-setup" class="tool" type="button" title="Change Pokémon" aria-label="Change Pokémon">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5"/><path d="M17.5 3.5a2.1 2.1 0 0 1 3 3L12 15l-4 1 1-4z"/></svg>
+        </button>
+        <span class="divider" aria-hidden="true"></span>
+        <button id="tb-bubble" class="tool" type="button" title="Status bubble on/off" aria-label="Status bubble on or off" aria-pressed="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9v6M10.5 6v12M14 8.5v7M17.5 10.5v3"/></svg>
+        </button>
+        <span class="divider" aria-hidden="true"></span>
+        <button id="tb-more" class="tool" type="button" title="More" aria-label="More options" aria-haspopup="menu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+      </div>
+
+      <!-- In-page menu (browser mode; the desktop app uses a native menu) -->
+      <div id="menu" class="menu" role="menu" hidden></div>
+
       <div id="alert" class="alert" hidden>!</div>
       <canvas id="sprite" class="sprite" width="192" height="208" aria-label="Desktop pet"></canvas>
-      <div id="shadow" class="shadow"></div>
+      <div class="shadow"></div>
     </div>
     <div id="empty" class="empty" hidden>
-      No pet yet. Run <code>pokeeclaude add pikachu</code>
+      No pet yet. Open <a href="/setup">setup</a> to choose one.
     </div>
     <script type="module" src="/pet.js"></script>
   </body>

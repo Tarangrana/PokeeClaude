@@ -7,4 +7,6 @@ contextBridge.exposeInMainWorld("pokee", {
   dragStart: (screenX, screenY) => ipcRenderer.send("pokee:drag-start", screenX, screenY),
   dragMove: (screenX, screenY) => ipcRenderer.send("pokee:drag-move", screenX, screenY),
   dragEnd: () => ipcRenderer.send("pokee:drag-end"),
+  openSetup: () => ipcRenderer.send("pokee:open-setup"),
+  openMenu: () => ipcRenderer.send("pokee:menu"),
 });

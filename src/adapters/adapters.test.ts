@@ -57,3 +57,15 @@ test("Codex notify payloads map to success; hook payloads reuse the Claude mappe
   assert.deepEqual([hook?.agent, hook?.reaction], ["codex", "testing"]);
   assert.equal(mapCodexPayload({ type: "something-else" }), null);
 });
+
+test("prompts start a turn, Stop/StopFailure end it, edits carry the file name", () => {
+  assert.equal(mapClaudeHook({ ...base, hook_event_name: "UserPromptSubmit", prompt: "x" })?.phase, "start");
+  assert.equal(mapClaudeHook({ ...base, hook_event_name: "Stop" })?.phase, "end");
+  assert.equal(mapClaudeHook({ ...base, hook_event_name: "StopFailure" })?.phase, "end");
+  assert.equal(mapClaudeHook({ ...base, hook_event_name: "PreToolUse", tool_name: "Edit", tool_input: { file_path: "/p/src/app.ts" } })?.file, "app.ts");
+  assert.equal(mapClaudeHook({ ...base, hook_event_name: "PreToolUse", tool_name: "Read", tool_input: { file_path: "/p/a.ts" } })?.file, undefined);
+  const reply = { ...base, hook_event_name: "Stop", last_assistant_message: "Fixed the login bug" };
+  assert.equal(mapClaudeHook(reply)?.context, "All done!");
+  assert.equal(mapClaudeHook(reply, { showPrompt: true })?.context, "Fixed the login bug");
+  assert.equal(mapCodexPayload({ type: "agent-turn-complete" })?.phase, "end");
+});
