@@ -36,6 +36,8 @@ test("prompt text only shows when opted in", () => {
 
 test("the idle notice after a reply doesn't replace the done pill", () => {
   assert.equal(mapClaudeHook({ ...base, hook_event_name: "Notification", notification_type: "idle_prompt" }), null);
+  assert.equal(mapClaudeHook({ ...base, hook_event_name: "Notification", message: "Claude is waiting for your input" }), null);
+  assert.equal(mapClaudeHook({ ...base, hook_event_name: "Notification", message: "Claude needs your permission to use Bash" })?.reaction, "waiting");
 });
 
 test("SessionEnd removes the session; unknown events are ignored", () => {

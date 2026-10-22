@@ -217,7 +217,8 @@ $("go").addEventListener("click", async () => {
     const wantClaude = $("agent-claude").checked;
     const wantCodex = $("agent-codex").checked && !$("agent-codex").disabled;
     const agents = {};
-    if (wantClaude !== state.status.claude.installed) agents.claude = wantClaude;
+    // Always (re)write Claude's hooks when ticked, so they point at this version.
+    if (wantClaude || state.status.claude.installed) agents.claude = wantClaude;
     if (wantCodex !== state.status.codex.installed && !$("agent-codex").disabled) agents.codex = wantCodex;
     const newlyConnected = agents.claude === true || agents.codex === true;
     if (Object.keys(agents).length) {

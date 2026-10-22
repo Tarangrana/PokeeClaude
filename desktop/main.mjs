@@ -1,14 +1,16 @@
 // PokeeClaude desktop shell: a transparent, always-on-top window that hosts
 // the pet renderer, plus a tray menu. The bridge server runs in-process.
-import { app, BrowserWindow, ipcMain, Menu, nativeImage, Notification, screen, shell, Tray } from "electron";
+import { app, BrowserWindow, clipboard, dialog, ipcMain, Menu, nativeImage, Notification, screen, shell, Tray } from "electron";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { getFromBridge, postToBridge } from "../dist/bridge/send.js";
 import { startBridge } from "../dist/bridge/server.js";
-import { bridgePort, loadConfig } from "../dist/config.js";
+import { bridgePort, configPath, loadConfig } from "../dist/config.js";
+import { claudeSettingsPath, findPokeeCommands, readSettings } from "../dist/install/claude-settings.js";
 import { findPet, listPets } from "../dist/pets.js";
-import { refreshHookLauncher, setupStatus } from "../dist/setup.js";
+import { hookLauncherPath, refreshHookLauncher, setupStatus, syncAgentHooks } from "../dist/setup.js";
 import { activityLogPath } from "../dist/hook.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -31,6 +33,9 @@ app.whenReady().then(async () => {
   const url = await ensureBridge();
   bridgeUrl = url;
   refreshHookLauncher();
+  // Hooks from an older version keep running old code until re-pointed here.
+  const synced = syncAgentHooks();
+  if (synced.claude) console.log("PokeeClaude: updated Claude Code hooks to this version");
   createWindow(url);
   await createTray(url);
   // First run (no pet or no hooks yet) or an explicit --setup opens the setup window.
@@ -235,6 +240,8 @@ function buildMenu(url, refresh) {
     { type: "separator" },
     { label: "Open in browser", click: () => shell.openExternal(url) },
     { label: "Open activity log", click: () => shell.openPath(activityLogPath()) },
+    { label: "Test the Done message", click: () => testDone() },
+    { label: "Copy diagnostics", click: () => copyDiagnostics() },
     { label: "Bring pet back", click: () => resetPosition() },
     { label: "Quit", role: "quit" },
   ]);
@@ -244,4 +251,46 @@ function resetPosition() {
   if (!win) return;
   const area = screen.getPrimaryDisplay().workArea;
   win.setPosition(area.x + area.width - WIDTH - 24, area.y + area.height - HEIGHT);
+}
+
+/** Play a fake finished turn on the pet, to check the display without Claude. */
+function testDone() {
+  if (!bridge) return;
+  const base = { agent: "manual", sessionId: "pokee-test", project: "Test" };
+  const t = Date.now();
+  bridge.push({ ...base, reaction: "thinking", context: "Thinking…", phase: "start", at: t });
+  setTimeout(() => bridge.push({ ...base, reaction: "editing", context: "Editing demo.ts", file: "demo.ts", at: Date.now() }), 1200);
+  setTimeout(() => bridge.push({ ...base, reaction: "success", context: "All done!", phase: "end", at: Date.now() }), 3000);
+}
+
+/** Everything needed to debug "the pet doesn't react", without prompts or code. */
+function copyDiagnostics() {
+  const read = (path, lines) => {
+    try {
+      const text = readFileSync(path, "utf8");
+      return lines ? text.trim().split("\n").slice(-lines).join("\n") : text.trim();
+    } catch {
+      return "(missing)";
+    }
+  };
+  let commands = [];
+  try {
+    commands = findPokeeCommands(readSettings(claudeSettingsPath()));
+  } catch (error) {
+    commands = [`(could not read settings: ${error.message})`];
+  }
+  const text = [
+    `PokeeClaude ${app.getVersion()} on ${process.platform} ${process.arch}`,
+    `App: ${process.execPath}`,
+    `Claude settings: ${claudeSettingsPath()}`,
+    `PokeeClaude hook commands (${commands.length}):`,
+    ...commands.map((c) => `  ${c}`),
+    `Hook launcher (${hookLauncherPath()}):`,
+    read(hookLauncherPath()),
+    `Config: ${read(configPath())}`,
+    "Last activity:",
+    existsSync(activityLogPath()) ? read(activityLogPath(), 25) : "(no activity log yet: Claude hasn't run a PokeeClaude hook from this version)",
+  ].join("\n");
+  clipboard.writeText(text);
+  dialog.showMessageBox({ message: "Diagnostics copied", detail: "Paste them into your chat. They contain no prompts or code." });
 }

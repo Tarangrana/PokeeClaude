@@ -139,6 +139,39 @@ export async function addPokemon(input: { key?: unknown; dex?: unknown; shiny?: 
   return { id: pet.metadata.id, displayName: pet.metadata.displayName };
 }
 
+/**
+ * Point any installed PokeeClaude hooks at *this* copy of the app. Called on
+ * every app start: without it, hooks written by an older version (or a source
+ * checkout) keep running that old code after an update.
+ */
+export function syncAgentHooks(): { claude: boolean; codex: boolean } {
+  const runner = hookRunner();
+  const changed = { claude: false, codex: false };
+  try {
+    const path = claudeSettingsPath();
+    const commands = findPokeeCommands(readSettings(path));
+    const expected = hookCommand(runner);
+    if (commands.length > 0 && (commands.length !== 1 || commands[0] !== expected)) {
+      changed.claude = updateSettingsFile(path, (s) => addPokeeHooks(s, expected)).changed;
+    }
+  } catch {
+    // Unreadable settings: leave them alone; setup shows the error.
+  }
+  try {
+    const path = codexConfigPath();
+    if (existsSync(path)) {
+      const toml = readFileSync(path, "utf8");
+      const line = notifyLine(runner);
+      if (hasManagedNotify(toml) && !toml.includes(line)) {
+        changed.codex = updateCodexConfig((t) => addNotify(t, line)).changed;
+      }
+    }
+  } catch {
+    // Same as above.
+  }
+  return changed;
+}
+
 /** Turn Claude Code / Codex hooks on or off. Missing keys are left alone. */
 export function setAgents(input: { claude?: unknown; codex?: unknown }) {
   const results: Record<string, { changed: boolean; backup: string | null; path: string }> = {};
