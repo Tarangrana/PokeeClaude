@@ -24,8 +24,12 @@ Pokémon of your choice as the pet.
   play a chime and send a system notification (turn off under ⌄).
 - **Hover toolbar:** ✎ change Pokémon · progress updates on/off ("Done" and
   "Needs you" always show) · ⌄ size, walking, sound and notifications.
-- **Activity log:** if the pet ever doesn't react, tray → **Open activity log**
-  shows each hook Claude sent (event names only, no prompts or code).
+- **Troubleshooting built in:** tray → **Test the Done message** plays a fake
+  finished task; **Copy diagnostics** copies the version, hook commands and
+  recent activity (no prompts or code); **Open activity log** shows each hook
+  Claude sent.
+- **Self-updating hooks:** every app start points Claude Code's hooks at the
+  installed version, so updates take effect after restarting Claude Code.
 - **Reacts:** thinks, works, waits, jumps when done, greys out on errors.
 - **Multi-session:** a session waiting on you takes priority; the others show
   as "+N busy".

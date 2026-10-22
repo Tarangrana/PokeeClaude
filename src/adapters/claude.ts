@@ -68,7 +68,8 @@ export function mapClaudeHook(payload: unknown, options: AdapterOptions = {}): P
     case "Notification": {
       const type = str(payload.notification_type);
       // Claude Code sends this ~60s after finishing; the "done" pill already covers it.
-      if (type === "idle_prompt") return null;
+      // Older versions send it without a type, just the message.
+      if (type === "idle_prompt" || /waiting for your input/i.test(str(payload.message))) return null;
       if (type === "permission_prompt") return event("waiting", "Needs your permission");
       if (type === "auth_success") return null;
       return event("waiting", str(payload.message) || "Needs your attention");

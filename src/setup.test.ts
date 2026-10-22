@@ -48,3 +48,33 @@ test("hooks log one line per call, without prompt text", async () => {
   assert.match(log, /claude UserPromptSubmit project=demo -> thinking \(pet not running\)\n$/);
   assert.doesNotMatch(log, /secret/);
 });
+
+test("app start re-points old PokeeClaude hooks at this version, leaving others alone", async () => {
+  const { mkdtempSync, readFileSync, writeFileSync } = await import("node:fs");
+  const { syncAgentHooks } = await import("./setup.js");
+  const dir = mkdtempSync(join(tmpdir(), "pokee-sync-"));
+  const previous = process.env.CLAUDE_CONFIG_DIR;
+  process.env.CLAUDE_CONFIG_DIR = dir;
+  try {
+    const old = "/usr/local/bin/node /Users/me/old-PokeeClaude/dist/cli.js hook --agent claude --pokeeclaude";
+    writeFileSync(join(dir, "settings.json"), JSON.stringify({
+      hooks: {
+        Stop: [{ hooks: [{ type: "command", command: old }] }, { hooks: [{ type: "command", command: "say done" }] }],
+      },
+    }));
+    assert.deepEqual(syncAgentHooks(), { claude: true, codex: false });
+    const settings = JSON.parse(readFileSync(join(dir, "settings.json"), "utf8"));
+    const all = JSON.stringify(settings);
+    assert.doesNotMatch(all, /old-PokeeClaude/);
+    assert.match(all, /say done/);
+    assert.ok(settings.hooks.SessionStart, "missing hook events are added too");
+    // Already up to date: nothing to do.
+    assert.deepEqual(syncAgentHooks(), { claude: false, codex: false });
+    // Not installed at all: stays not installed.
+    writeFileSync(join(dir, "settings.json"), "{}");
+    assert.deepEqual(syncAgentHooks(), { claude: false, codex: false });
+  } finally {
+    if (previous === undefined) delete process.env.CLAUDE_CONFIG_DIR;
+    else process.env.CLAUDE_CONFIG_DIR = previous;
+  }
+});
