@@ -55,6 +55,7 @@ test("app start re-points old PokeeClaude hooks at this version, leaving others 
   const dir = mkdtempSync(join(tmpdir(), "pokee-sync-"));
   const previous = process.env.CLAUDE_CONFIG_DIR;
   process.env.CLAUDE_CONFIG_DIR = dir;
+  process.env.CLAUDE_DESKTOP_CONFIG = join(dir, "claude_desktop_config.json");
   try {
     const old = "/usr/local/bin/node /Users/me/old-PokeeClaude/dist/cli.js hook --agent claude --pokeeclaude";
     writeFileSync(join(dir, "settings.json"), JSON.stringify({
@@ -62,18 +63,25 @@ test("app start re-points old PokeeClaude hooks at this version, leaving others 
         Stop: [{ hooks: [{ type: "command", command: old }] }, { hooks: [{ type: "command", command: "say done" }] }],
       },
     }));
-    assert.deepEqual(syncAgentHooks(), { claude: true, codex: false });
+    assert.deepEqual(syncAgentHooks(), { claude: true, codex: false, claudeApp: false });
     const settings = JSON.parse(readFileSync(join(dir, "settings.json"), "utf8"));
     const all = JSON.stringify(settings);
     assert.doesNotMatch(all, /old-PokeeClaude/);
     assert.match(all, /say done/);
     assert.ok(settings.hooks.SessionStart, "missing hook events are added too");
     // Already up to date: nothing to do.
-    assert.deepEqual(syncAgentHooks(), { claude: false, codex: false });
+    assert.deepEqual(syncAgentHooks(), { claude: false, codex: false, claudeApp: false });
     // Not installed at all: stays not installed.
     writeFileSync(join(dir, "settings.json"), "{}");
-    assert.deepEqual(syncAgentHooks(), { claude: false, codex: false });
+    assert.deepEqual(syncAgentHooks(), { claude: false, codex: false, claudeApp: false });
+    // Claude app MCP entry pointing at an old copy gets re-pointed too.
+    writeFileSync(process.env.CLAUDE_DESKTOP_CONFIG!, JSON.stringify({ mcpServers: { pokeeclaude: { command: "/old/node", args: ["/old/cli.js", "mcp"] }, other: { command: "x", args: [] } } }));
+    assert.deepEqual(syncAgentHooks(), { claude: false, codex: false, claudeApp: true });
+    const app = JSON.parse(readFileSync(process.env.CLAUDE_DESKTOP_CONFIG!, "utf8"));
+    assert.doesNotMatch(JSON.stringify(app.mcpServers.pokeeclaude), /old/);
+    assert.deepEqual(app.mcpServers.other, { command: "x", args: [] });
   } finally {
+    delete process.env.CLAUDE_DESKTOP_CONFIG;
     if (previous === undefined) delete process.env.CLAUDE_CONFIG_DIR;
     else process.env.CLAUDE_CONFIG_DIR = previous;
   }

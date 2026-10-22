@@ -9,6 +9,7 @@ import { getFromBridge, postToBridge } from "../dist/bridge/send.js";
 import { startBridge } from "../dist/bridge/server.js";
 import { bridgePort, configPath, loadConfig } from "../dist/config.js";
 import { claudeSettingsPath, findPokeeCommands, readSettings } from "../dist/install/claude-settings.js";
+import { claudeDesktopConfigPath, getMcpServer } from "../dist/install/claude-desktop.js";
 import { findPet, listPets } from "../dist/pets.js";
 import { hookLauncherPath, refreshHookLauncher, setupStatus, syncAgentHooks } from "../dist/setup.js";
 import { activityLogPath } from "../dist/hook.js";
@@ -285,6 +286,13 @@ function copyDiagnostics() {
     `Claude settings: ${claudeSettingsPath()}`,
     `PokeeClaude hook commands (${commands.length}):`,
     ...commands.map((c) => `  ${c}`),
+    `Claude app MCP (${claudeDesktopConfigPath()}): ${(() => {
+      try {
+        return JSON.stringify(getMcpServer(readSettings(claudeDesktopConfigPath()))) ?? "not installed";
+      } catch (error) {
+        return `could not read: ${error.message}`;
+      }
+    })()}`,
     `Hook launcher (${hookLauncherPath()}):`,
     read(hookLauncherPath()),
     `Config: ${read(configPath())}`,

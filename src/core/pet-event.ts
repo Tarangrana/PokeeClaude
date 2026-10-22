@@ -1,6 +1,7 @@
 import { isReaction, type Reaction } from "./reactions.js";
 
-export type AgentName = "claude" | "codex" | "manual";
+/** "app" is the Claude desktop app (chats), reporting through the PokeeClaude MCP server. */
+export type AgentName = "claude" | "codex" | "app" | "manual";
 
 /**
  * One update sent from an agent hook to the desktop pet.
@@ -38,7 +39,7 @@ export function parsePetEvent(value: unknown): PetEvent | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const r = value as Record<string, unknown>;
   if (!isReaction(r.reaction)) return null;
-  const agent = r.agent === "claude" || r.agent === "codex" || r.agent === "manual" ? r.agent : "manual";
+  const agent = r.agent === "claude" || r.agent === "codex" || r.agent === "app" || r.agent === "manual" ? r.agent : "manual";
   return {
     agent,
     sessionId: typeof r.sessionId === "string" && r.sessionId ? clip(r.sessionId, 80) : "default",

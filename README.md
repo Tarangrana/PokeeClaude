@@ -36,6 +36,9 @@ Pokémon of your choice as the pet.
 - **Any Pokémon:** `pokeeclaude add pikachu`, `add garchomp --shiny`, `add rotom-wash`.
   629 Pokémon and forms (Gen 1–5) get pixel sprites with real walk cycles, and
   any dex number 1–1025 works with `--style hd`.
+- **Claude app chats too:** tick **Claude app chats** in setup and normal
+  conversations in the Claude desktop app show "Planning your trip…" → "Planned
+  a 3-day trip ✓" (see [Claude desktop app](#claude-desktop-app)).
 - **Codex-compatible:** pets use the Codex format, so your `~/.codex/pets`
   work here and the Pokémon pets work in Codex. Codex CLI can drive the pet too.
 
@@ -98,6 +101,24 @@ page and pet in a browser tab.
 
 Untick **Claude Code** in the setup window and click the button (or run
 `pokeeclaude uninstall`), then delete the app and the `~/.pokeeclaude` folder.
+
+## Claude desktop app
+
+Claude Code sessions report through hooks automatically. **Normal chats** in
+the Claude desktop app have no hooks, so PokeeClaude adds a small local MCP
+server ("pokeeclaude") with three tools: `pet_working`, `pet_done` and
+`pet_say`. Claude is asked to call `pet_working` at the start of every reply
+and `pet_done` at the end, which drives the same status pill, "Done" pill,
+chime and notification.
+
+- Turn it on: setup window → tick **Claude app chats** → click the button →
+  restart the Claude app.
+- It's best effort: Claude decides when to call the tools, and each reply
+  shows a small "used pet_done" line in the chat.
+- Code sessions in the Claude app running on your Mac already use the hooks;
+  cloud sessions can't reach your Mac.
+- Turn it off by unticking it again; other MCP servers in
+  `claude_desktop_config.json` are never touched.
 
 ## Commands
 

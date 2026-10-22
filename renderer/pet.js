@@ -13,7 +13,7 @@ const toolbar = $("toolbar");
 const menu = $("menu");
 
 const RESTING = new Set(["idle", "success", "waving"]);
-const AGENT_LABEL = { claude: "Claude", codex: "Codex", manual: "" };
+const AGENT_LABEL = { claude: "Claude", codex: "Codex", app: "Claude app", manual: "" };
 const WALK_SPEED = 70; // px per second
 
 /** How long each kind of status stays up before fading away on its own. */
