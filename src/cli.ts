@@ -33,6 +33,7 @@ Agents
 
 Internal
   pokeeclaude hook --agent claude|codex             Called by the agent; reads the event payload
+  pokeeclaude mcp                                   MCP server for the Claude desktop app (started by the app)
 `;
 
 async function main(argv: string[]): Promise<number> {
@@ -41,6 +42,12 @@ async function main(argv: string[]): Promise<number> {
   const positional = positionalArgs(rest);
 
   switch (command) {
+    case "mcp": {
+      // Started by the Claude desktop app; speaks MCP on stdin/stdout.
+      const { runMcpServer } = await import("./mcp/server.js");
+      await runMcpServer();
+      return 0;
+    }
     case "hook": {
       const { runHook } = await import("./hook.js");
       return runHook(option(rest, "--agent") ?? "claude", rest);

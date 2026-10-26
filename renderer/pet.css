@@ -128,7 +128,8 @@ body.electron {
 .meta:empty {
   display: none;
 }
-.meta + .meta:not(:empty)::before {
+/* Separator only between two visible items (app chats have no project). */
+.meta:not(:empty) ~ .meta:not(:empty)::before {
   content: "·";
   margin-right: 6px;
 }

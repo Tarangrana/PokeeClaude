@@ -144,7 +144,13 @@ function select(p, scroll) {
 // ---------- agents & pets ----------
 
 function renderAgents() {
-  const { claude, codex } = state.status;
+  const { claude, codex, claudeApp } = state.status;
+  $("agent-app").checked = claudeApp.installed;
+  $("app-status").textContent = claudeApp.error
+    ? `Can't read the Claude app's config: ${claudeApp.error}`
+    : claudeApp.installed
+      ? "Connected · Claude reports when chats finish"
+      : "Adds a small MCP tool to the Claude desktop app";
   $("agent-claude").checked = claude.installed || !claude.error;
   $("claude-status").textContent = claude.error
     ? `Can't read settings: ${claude.error}`
@@ -220,6 +226,9 @@ $("go").addEventListener("click", async () => {
     // Always (re)write Claude's hooks when ticked, so they point at this version.
     if (wantClaude || state.status.claude.installed) agents.claude = wantClaude;
     if (wantCodex !== state.status.codex.installed && !$("agent-codex").disabled) agents.codex = wantCodex;
+    const wantApp = $("agent-app").checked;
+    if (wantApp || state.status.claudeApp.installed) agents.claudeApp = wantApp;
+    const appNew = wantApp && !state.status.claudeApp.installed;
     const newlyConnected = agents.claude === true || agents.codex === true;
     if (Object.keys(agents).length) {
       setMessage("Connecting agents…");
@@ -230,10 +239,9 @@ $("go").addEventListener("click", async () => {
     p[shiny ? "installedShiny" : "installed"] = true;
     await refreshStatus();
     renderGrid();
+    const restart = [newlyConnected && "Claude Code", appNew && "the Claude app"].filter(Boolean).join(" and ");
     setMessage(
-      newlyConnected
-        ? `${pet.displayName} is on your desktop! Restart Claude Code once so it picks up the hooks.`
-        : `${pet.displayName} is on your desktop!`,
+      restart ? `${pet.displayName} is on your desktop! Restart ${restart} once so it picks this up.` : `${pet.displayName} is on your desktop!`,
       "ok",
     );
     window.pokeeSetup?.done();

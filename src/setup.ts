@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { homeDir, loadConfig, saveConfig } from "./config.js";
 import { claudeSettingsPath, addPokeeHooks, findPokeeCommands, hookCommand, readSettings, removePokeeHooks, updateSettingsFile } from "./install/claude-settings.js";
 import { addNotify, codexConfigPath, hasForeignNotify, hasManagedNotify, notifyLine, removeNotify, updateCodexConfig } from "./install/codex-config.js";
+import { addMcpServer, claudeDesktopConfigPath, getMcpServer, mcpEntry, removeMcpServer } from "./install/claude-desktop.js";
 import { findPet, listPets } from "./pets.js";
 import { listKnownPokemon, petIdFor, resolvePokemon } from "./pokemon/catalog.js";
 import { fetchCached, VSCODE_BASE } from "./pokemon/sprite-source.js";
@@ -44,6 +45,12 @@ export function hookRunner(): string[] {
   if (!process.versions.electron) return [process.execPath, cliPath];
   writeHookLauncher();
   return [hookLauncherPath()];
+}
+
+/** How the Claude desktop app should start our MCP server (see install/claude-desktop.ts). */
+export function mcpRunner(): { exec: string; cli: string; asNode: boolean } {
+  if (process.env.POKEECLAUDE_NODE) return { exec: process.env.POKEECLAUDE_NODE, cli: cliPath, asNode: false };
+  return { exec: process.execPath, cli: cliPath, asNode: Boolean(process.versions.electron) };
 }
 
 function writeHookLauncher(): void {
@@ -117,8 +124,17 @@ export function setupStatus() {
   const codexToml = existsSync(codexPath) ? readFileSync(codexPath, "utf8") : "";
   const config = loadConfig();
   const active = findPet(config.activePet) ?? listPets()[0] ?? null;
+  const desktopPath = claudeDesktopConfigPath();
+  let appInstalled = false;
+  let appError: string | null = null;
+  try {
+    appInstalled = getMcpServer(readSettings(desktopPath)) !== null;
+  } catch (error) {
+    appError = error instanceof Error ? error.message : String(error);
+  }
   return {
     claude: { installed: claudeInstalled, path: claudeSettingsPath(), error: claudeError },
+    claudeApp: { installed: appInstalled, path: desktopPath, error: appError },
     codex: { installed: hasManagedNotify(codexToml), path: codexPath, blocked: hasForeignNotify(codexToml) },
     activePet: active?.metadata.id ?? null,
     pets: listPets().map((p) => ({ id: p.metadata.id, displayName: p.metadata.displayName, source: p.source })),
@@ -144,9 +160,19 @@ export async function addPokemon(input: { key?: unknown; dex?: unknown; shiny?: 
  * every app start: without it, hooks written by an older version (or a source
  * checkout) keep running that old code after an update.
  */
-export function syncAgentHooks(): { claude: boolean; codex: boolean } {
+export function syncAgentHooks(): { claude: boolean; codex: boolean; claudeApp: boolean } {
   const runner = hookRunner();
-  const changed = { claude: false, codex: false };
+  const changed = { claude: false, codex: false, claudeApp: false };
+  try {
+    const path = claudeDesktopConfigPath();
+    const current = existsSync(path) ? getMcpServer(readSettings(path)) : null;
+    const expected = mcpEntry(mcpRunner());
+    if (current && JSON.stringify(current) !== JSON.stringify(expected)) {
+      changed.claudeApp = updateSettingsFile(path, (s) => addMcpServer(s, expected)).changed;
+    }
+  } catch {
+    // Unreadable app config: leave it alone.
+  }
   try {
     const path = claudeSettingsPath();
     const commands = findPokeeCommands(readSettings(path));
@@ -173,7 +199,7 @@ export function syncAgentHooks(): { claude: boolean; codex: boolean } {
 }
 
 /** Turn Claude Code / Codex hooks on or off. Missing keys are left alone. */
-export function setAgents(input: { claude?: unknown; codex?: unknown }) {
+export function setAgents(input: { claude?: unknown; codex?: unknown; claudeApp?: unknown }) {
   const results: Record<string, { changed: boolean; backup: string | null; path: string }> = {};
   const runner = hookRunner();
   if (typeof input.claude === "boolean") {
@@ -185,6 +211,11 @@ export function setAgents(input: { claude?: unknown; codex?: unknown }) {
     const line = notifyLine(runner);
     const on = input.codex;
     results.codex = updateCodexConfig((t) => (on ? addNotify(t, line) : removeNotify(t)));
+  }
+  if (typeof input.claudeApp === "boolean") {
+    const entry = mcpEntry(mcpRunner());
+    const on = input.claudeApp;
+    results.claudeApp = updateSettingsFile(claudeDesktopConfigPath(), (s) => (on ? addMcpServer(s, entry) : removeMcpServer(s)));
   }
   return results;
 }
