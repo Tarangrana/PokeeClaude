@@ -134,7 +134,8 @@ export function setupStatus() {
   }
   return {
     claude: { installed: claudeInstalled, path: claudeSettingsPath(), error: claudeError },
-    claudeApp: { installed: appInstalled, path: desktopPath, error: appError },
+    // "present": the Claude desktop app has a config folder, so connecting it makes sense.
+    claudeApp: { installed: appInstalled, present: existsSync(dirname(desktopPath)), path: desktopPath, error: appError },
     codex: { installed: hasManagedNotify(codexToml), path: codexPath, blocked: hasForeignNotify(codexToml) },
     activePet: active?.metadata.id ?? null,
     pets: listPets().map((p) => ({ id: p.metadata.id, displayName: p.metadata.displayName, source: p.source })),

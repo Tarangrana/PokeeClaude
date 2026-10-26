@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or idea to discuss
+    url: https://github.com/Tarangrana/PokeeClaude/discussions
+    about: For anything that isn't a bug report.

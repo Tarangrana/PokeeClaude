@@ -1,6 +1,26 @@
 # PokeeClaude
 
-**Pokémon desktop pets for Claude Code.**
+**Pokémon desktop pets for Claude Code — and for Claude app chats.**
+
+[![CI](https://github.com/Tarangrana/PokeeClaude/actions/workflows/ci.yml/badge.svg)](https://github.com/Tarangrana/PokeeClaude/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Tarangrana/PokeeClaude?sort=semver)](https://github.com/Tarangrana/PokeeClaude/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%E2%89%A520-5fa04e)](https://nodejs.org)
+
+## About
+
+PokeeClaude puts an animated Pokémon on your desktop that reacts to what Claude
+is doing: it thinks while Claude thinks, shows "Editing cli.ts", asks for your
+attention when Claude needs permission, and jumps with "Done in 2m 14s · 3 files"
+when a turn finishes. It works with **Claude Code** in the terminal (through
+hooks), with **normal chats in the Claude desktop app** (through a tiny local MCP
+server) and with **Codex CLI**.
+
+Everything runs on your machine: a local bridge on `127.0.0.1`, no account, no
+telemetry, no prompts or code leaving the computer. Free and MIT licensed —
+installers for macOS, Windows and Linux are on the
+[Releases page](https://github.com/Tarangrana/PokeeClaude/releases/latest), and
+[CONTRIBUTING.md](CONTRIBUTING.md) has everything you need to hack on it.
 
 Codex (ChatGPT) has desktop pets: a little animated companion that sits on
 your screen and shows what the agent is doing. Claude Code doesn't. PokeeClaude
@@ -111,8 +131,9 @@ server ("pokeeclaude") with three tools: `pet_working`, `pet_done` and
 and `pet_done` at the end, which drives the same status pill, "Done" pill,
 chime and notification.
 
-- Turn it on: setup window → tick **Claude app chats** → click the button →
-  restart the Claude app.
+- Turn it on: it is **ticked by default** in the setup window when the Claude
+  desktop app is installed — click the button, then restart the Claude app.
+  (Untick it there if you only want the terminal.)
 - It's best effort: Claude decides when to call the tools, and each reply
   shows a small "used pet_done" line in the chat.
 - Code sessions in the Claude app running on your Mac already use the hooks;
@@ -230,6 +251,13 @@ desktop/        Electron shell: transparent pet window, setup window, tray, app 
 scripts/        icon + vscode-pokemon index generators
 .github/        installer build workflow
 ```
+
+## Contributing
+
+Bug reports and PRs are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) and the
+[Code of Conduct](CODE_OF_CONDUCT.md). Found a bug? Open an issue with the
+output of **tray → Copy diagnostics**. CI runs `npm test` and `npm run typecheck`
+on Linux, macOS and Windows for every PR.
 
 Inspired by [claude-pets](https://github.com/alvinunreal/claude-pets) /
 [OpenPets](https://github.com/OpenPetsHQ/openpets).
