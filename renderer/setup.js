@@ -25,6 +25,7 @@ async function api(path, body) {
 
 async function init() {
   const [dex, status] = await Promise.all([api("/api/pokedex"), api("/api/setup/status")]);
+  api("/api/health").then((h) => { $("version").textContent = h.version ? `v${h.version}` : ""; }).catch(() => {});
   state.dex = dex;
   state.status = status;
   renderGens();
@@ -145,12 +146,18 @@ function select(p, scroll) {
 
 function renderAgents() {
   const { claude, codex, claudeApp } = state.status;
-  $("agent-app").checked = claudeApp.installed;
+  // On by default when the Claude desktop app is there: chats should react too,
+  // not just the terminal. Never offered when the app isn't installed.
+  const appUsable = claudeApp.present && !claudeApp.error;
+  $("agent-app").checked = claudeApp.installed || appUsable;
+  $("agent-app").disabled = !appUsable && !claudeApp.installed;
   $("app-status").textContent = claudeApp.error
     ? `Can't read the Claude app's config: ${claudeApp.error}`
     : claudeApp.installed
-      ? "Connected · Claude reports when chats finish"
-      : "Adds a small MCP tool to the Claude desktop app";
+      ? "Connected · your pet reacts to chats too"
+      : appUsable
+        ? "Adds a small MCP tool so chats drive the pet (restart the Claude app after)"
+        : "Claude desktop app not found on this computer";
   $("agent-claude").checked = claude.installed || !claude.error;
   $("claude-status").textContent = claude.error
     ? `Can't read settings: ${claude.error}`
@@ -226,7 +233,7 @@ $("go").addEventListener("click", async () => {
     // Always (re)write Claude's hooks when ticked, so they point at this version.
     if (wantClaude || state.status.claude.installed) agents.claude = wantClaude;
     if (wantCodex !== state.status.codex.installed && !$("agent-codex").disabled) agents.codex = wantCodex;
-    const wantApp = $("agent-app").checked;
+    const wantApp = $("agent-app").checked && !$("agent-app").disabled;
     if (wantApp || state.status.claudeApp.installed) agents.claudeApp = wantApp;
     const appNew = wantApp && !state.status.claudeApp.installed;
     const newlyConnected = agents.claude === true || agents.codex === true;

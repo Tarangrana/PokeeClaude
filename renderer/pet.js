@@ -93,6 +93,11 @@ function applyConfig(config, pet) {
   state.petId = pet.id;
   state.petName = pet.displayName;
   const img = new Image();
+  img.onerror = () => {
+    state.sheet = null;
+    $("empty").hidden = false;
+    $("empty").textContent = `Couldn't load ${pet.displayName}'s sprites. Open setup and pick it again.`;
+  };
   img.onload = () => {
     state.sheet = img;
     state.lastDrawn = "";
@@ -392,6 +397,15 @@ canvas.addEventListener("pointermove", (e) => {
   state.dragging = true;
   petEl.classList.add("dragging");
   host.dragMove?.(e.screenX, e.screenY, e.clientX, e.clientY);
+});
+
+// A cancelled gesture (OS gesture, window switch) would otherwise leave the
+// pet stuck in "dragging" and stop it animating or walking.
+canvas.addEventListener("pointercancel", () => {
+  pointerStart = null;
+  state.dragging = false;
+  petEl.classList.remove("dragging");
+  host.dragEnd?.();
 });
 
 canvas.addEventListener("pointerup", () => {

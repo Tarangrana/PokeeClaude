@@ -9,12 +9,17 @@
   <body>
     <header class="top">
       <div class="brand">
-        <img class="logo" src="/icon.png" alt="" width="40" height="40" />
-        <div>
-          <h1>PokeeClaude</h1>
-          <p>Pick a Pokémon to keep Claude Code company on your desktop.</p>
+        <img class="logo" src="/icon.png" alt="" width="44" height="44" />
+        <div class="brand-text">
+          <h1>PokeeClaude <span id="version" class="version"></span></h1>
+          <p>Pick a Pokémon to keep Claude company — in the terminal and in Claude app chats.</p>
         </div>
       </div>
+      <nav class="links" aria-label="About PokeeClaude">
+        <a href="https://github.com/Tarangrana/PokeeClaude" target="_blank" rel="noreferrer">GitHub</a>
+        <a href="https://github.com/Tarangrana/PokeeClaude#readme" target="_blank" rel="noreferrer">Docs</a>
+        <a href="https://github.com/Tarangrana/PokeeClaude/issues/new/choose" target="_blank" rel="noreferrer">Report a bug</a>
+      </nav>
     </header>
 
     <main class="layout">
@@ -43,6 +48,7 @@
 
         <div class="card">
           <h3>Connect</h3>
+          <p class="hint">Where your pet should watch for activity.</p>
           <label class="agent">
             <input id="agent-claude" type="checkbox" checked />
             <span>
@@ -66,8 +72,10 @@
           </label>
         </div>
 
-        <button id="go" class="primary" disabled>Choose a Pokémon</button>
-        <p id="message" class="message" role="status" aria-live="polite"></p>
+        <div class="actions">
+          <button id="go" class="primary" disabled>Choose a Pokémon</button>
+          <p id="message" class="message" role="status" aria-live="polite"></p>
+        </div>
 
         <div id="mine-card" class="card" hidden>
           <h3>Your pets</h3>
@@ -77,8 +85,13 @@
     </main>
 
     <footer class="foot">
+      <p>
+        <strong>About.</strong> PokeeClaude is a free, open-source desktop pet that reacts to what Claude is
+        doing — hooks for Claude Code, a small local MCP server for Claude app chats. Everything runs on
+        127.0.0.1; no prompts or code leave your machine.
+      </p>
       Sprites download from <a href="https://github.com/jakobhoeg/vscode-pokemon" target="_blank" rel="noreferrer">vscode-pokemon</a>.
-      Pokémon © Nintendo / Creatures / GAME FREAK. Unofficial fan project.
+      Pokémon © Nintendo / Creatures / GAME FREAK. Unofficial fan project, MIT licensed.
     </footer>
     <script type="module" src="/setup.js"></script>
   </body>

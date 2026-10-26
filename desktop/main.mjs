@@ -256,12 +256,13 @@ function resetPosition() {
 
 /** Play a fake finished turn on the pet, to check the display without Claude. */
 function testDone() {
-  if (!bridge) return;
+  // Without an in-process bridge (another PokeeClaude owns the port) send over HTTP.
+  const push = bridge ? (event) => bridge.push(event) : (event) => postToBridge("/api/event", event);
   const base = { agent: "manual", sessionId: "pokee-test", project: "Test" };
   const t = Date.now();
-  bridge.push({ ...base, reaction: "thinking", context: "Thinking…", phase: "start", at: t });
-  setTimeout(() => bridge.push({ ...base, reaction: "editing", context: "Editing demo.ts", file: "demo.ts", at: Date.now() }), 1200);
-  setTimeout(() => bridge.push({ ...base, reaction: "success", context: "All done!", phase: "end", at: Date.now() }), 3000);
+  push({ ...base, reaction: "thinking", context: "Thinking…", phase: "start", at: t });
+  setTimeout(() => push({ ...base, reaction: "editing", context: "Editing demo.ts", file: "demo.ts", at: Date.now() }), 1200);
+  setTimeout(() => push({ ...base, reaction: "success", context: "All done!", phase: "end", at: Date.now() }), 3000);
 }
 
 /** Everything needed to debug "the pet doesn't react", without prompts or code. */

@@ -131,6 +131,7 @@ test("Claude app config: add, update and remove only our server", () => {
   assert.equal(added.globalShortcut, "Ctrl+Space");
   assert.deepEqual(removeMcpServer(added), existing);
   assert.equal(getMcpServer({}), null);
-  assert.match(claudeDesktopConfigPath("darwin", {}), /Library\/Application Support\/Claude\/claude_desktop_config\.json$/);
+  // join() uses the host separator, so this has to pass on Windows CI too.
+  assert.match(claudeDesktopConfigPath("darwin", {}), /Library[\\/]Application Support[\\/]Claude[\\/]claude_desktop_config\.json$/);
   assert.match(claudeDesktopConfigPath("win32", { APPDATA: "C:\\Users\\me\\AppData\\Roaming" }), /Claude[\\/]claude_desktop_config\.json$/);
 });
