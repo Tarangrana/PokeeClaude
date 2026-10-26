@@ -206,6 +206,8 @@ vscode-pokemon's CC0 data by `scripts/gen-vscode-index.mjs`.
 No Pokémon artwork is stored in this repository. Pokémon and all related
 names and artwork are © Nintendo / Creatures Inc. / GAME FREAK inc. This is a
 non-commercial fan project and is not affiliated with or endorsed by them.
+The code is MIT licensed ([LICENSE](LICENSE)); see [NOTICE](NOTICE) for what
+that licence does *not* cover.
 
 ## Privacy
 
